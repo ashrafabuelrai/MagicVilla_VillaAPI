@@ -1,7 +1,12 @@
 
 
 
-using MagicVilla_VillaAPI.Logger;
+
+
+using MagicVilla_VillaAPI.Data;
+using MagicVilla_VillaAPI.Repository;
+using MagicVilla_VillaAPI.Repository.IRepository;
+using Microsoft.EntityFrameworkCore;
 
 namespace MagicVilla_VillaAPI
 {
@@ -15,13 +20,19 @@ namespace MagicVilla_VillaAPI
                 .WriteTo.File("log/villaLogs.txt",rollingInterval:RollingInterval.Day).CreateLogger();
             builder.Host.UseSerilog();*/
             #endregion
+            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            {
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+            });
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddAutoMapper(typeof(MappingConfig));
+
             builder.Services.AddControllers(options => {
                 //options.ReturnHttpNotAcceptable = true;
                 }).AddNewtonsoftJson().AddXmlDataContractSerializerFormatters();
 
             builder.Services.AddSwaggerGen();
-            builder.Services.AddSingleton<ILogging, Logging>();
-
+           
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
