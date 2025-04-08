@@ -1,17 +1,21 @@
-﻿using AutoMapper;
+﻿
+using Asp.Versioning;
+using AutoMapper;
 using MagicVilla_VillaAPI.Data;
 using MagicVilla_VillaAPI.Models;
 using MagicVilla_VillaAPI.Models.DTO;
 using MagicVilla_VillaAPI.Repository.IRepository;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
-namespace MagicVilla_VillaAPI.Controllers
+namespace MagicVilla_VillaAPI.Controllers.v1
 {
-    [Route("api/[controller]")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     [ApiController]
+    [ApiVersion("1.0")]
     public class VillaNumberController : ControllerBase
     {
         protected ApiResponse _response { get; set; }
@@ -30,7 +34,7 @@ namespace MagicVilla_VillaAPI.Controllers
         {
             try
             {
-                IEnumerable<VillaNumber> villaNumbers = _unitOfWork.VillaNumber.GetAll();
+                IEnumerable<VillaNumber> villaNumbers = _unitOfWork.VillaNumber.GetAll(includeProp:"Villa");
                 if(villaNumbers==null||villaNumbers.Count()==0)
                 {
                     _response.StatusCode = HttpStatusCode.NotFound;
@@ -49,6 +53,7 @@ namespace MagicVilla_VillaAPI.Controllers
             }
             return _response;
         }
+        
         [HttpGet("{villNo:int}", Name = "GetVillaNumber")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -83,16 +88,24 @@ namespace MagicVilla_VillaAPI.Controllers
             return _response;
         }
         [HttpPost(Name = "CreateVillaNumber")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public ActionResult<ApiResponse> CreateVillaNumber([FromForm] VillaNumberCreateDTO villaNumberCreateDTO)
+        public ActionResult<ApiResponse> CreateVillaNumber([FromBody] VillaNumberCreateDTO villaNumberCreateDTO)
         {
             try
             {
                 if (_unitOfWork.VillaNumber.Get(v => v.VillaNo == villaNumberCreateDTO.VillaNo) != null)
                 {
                     _response.ErrorMessage= new List<string> {"Villa number already exists"};
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.IsSuccess = false;
+                    return BadRequest(_response);
+                }
+                if (_unitOfWork.Villa.Get(v => v.Id == villaNumberCreateDTO.VillaId) == null)
+                {
+                    _response.ErrorMessage = new List<string> { "The Villa not exists" };
                     _response.StatusCode = HttpStatusCode.BadRequest;
                     _response.IsSuccess = false;
                     return BadRequest(_response);
@@ -118,6 +131,7 @@ namespace MagicVilla_VillaAPI.Controllers
             return _response;
         }
         [HttpDelete("{villNo:int}", Name = "DeleteVillaNumber")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -152,14 +166,22 @@ namespace MagicVilla_VillaAPI.Controllers
             return _response;
         }
         [HttpPut("{villNo:int}", Name = "UpdateVillaNumber")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public ActionResult<ApiResponse> UpdateVillaNumber(int villNo, [FromForm]VillaNumberUpdateDTO villaNumberUpdateDTO)
+        public ActionResult<ApiResponse> UpdateVillaNumber(int villNo, [FromBody] VillaNumberUpdateDTO villaNumberUpdateDTO)
         {
             try
             {
                 if (villaNumberUpdateDTO == null || villNo != villaNumberUpdateDTO.VillaNo)
                 {
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.IsSuccess = false;
+                    return BadRequest(_response);
+                }
+                if (_unitOfWork.Villa.Get(v => v.Id == villaNumberUpdateDTO.VillaId) == null)
+                {
+                    _response.ErrorMessage = new List<string> { "The Villa not exists" };
                     _response.StatusCode = HttpStatusCode.BadRequest;
                     _response.IsSuccess = false;
                     return BadRequest(_response);
